@@ -1,0 +1,1337 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+<meta name="apple-mobile-web-app-title" content="GuiaScan"/>
+<meta name="theme-color" content="#0A0F1E"/>
+<title>GuiaScan — Logística</title>
+<link rel="manifest" href="manifest.json"/>
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0A0F1E;--sur:#111827;--sur2:#1a2235;
+  --bor:rgba(255,255,255,0.08);
+  --ac:#00E5FF;--ac2:#00B4CC;
+  --gr:#00D68F;--gr2:rgba(0,214,143,0.12);
+  --rd:#FF4D6A;--rd2:rgba(255,77,106,0.12);
+  --yw:#FFB800;--yw2:rgba(255,184,0,0.12);
+  --tx:#E8EDF5;--txm:#6B7A99;
+  --st:env(safe-area-inset-top);--sb:env(safe-area-inset-bottom)
+}
+html,body{height:100%;background:var(--bg);color:var(--tx);font-family:'Inter',sans-serif;overflow:hidden;-webkit-tap-highlight-color:transparent}
+#app{display:flex;flex-direction:column;height:100dvh;padding-top:var(--st)}
+
+/* HEADER */
+header{display:flex;align-items:center;justify-content:space-between;padding:14px 20px 12px;background:var(--sur);border-bottom:1px solid var(--bor);flex-shrink:0}
+.logo{display:flex;align-items:center;gap:10px}
+.logo-ic{width:34px;height:34px;background:linear-gradient(135deg,var(--ac),var(--ac2));border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:18px}
+.logo-tx{font-size:22px;font-weight:700;letter-spacing:1px}
+.logo-tx span{color:var(--ac)}
+.logo-by{font-size:9px;font-weight:400;color:var(--txm);letter-spacing:.5px;margin-top:-2px;opacity:.6}
+.stats{display:flex;gap:6px}
+.chip{display:flex;align-items:center;gap:5px;background:var(--sur2);border:1px solid var(--bor);border-radius:20px;padding:4px 10px;font-size:12px;font-weight:600;color:var(--txm)}
+.chip .dot{width:6px;height:6px;border-radius:50%}
+.chip.rev .dot{background:var(--gr)}
+.chip.pen .dot{background:var(--yw)}
+.chip .n{color:var(--tx)}
+
+/* TABS */
+.tabs{display:flex;background:var(--sur);border-bottom:1px solid var(--bor);flex-shrink:0}
+.tab{flex:1;padding:11px 4px;font-size:13px;font-weight:600;color:var(--txm);border:none;background:none;cursor:pointer;border-bottom:2px solid transparent;transition:all .2s;touch-action:manipulation}
+.tab.active{color:var(--ac);border-bottom-color:var(--ac)}
+
+/* VIEWS */
+.view{display:none;flex:1;overflow:hidden;flex-direction:column}
+.view.active{display:flex}
+
+/* SCANNER */
+#vs{align-items:center;padding:14px 16px 0;gap:12px;overflow-y:auto;-webkit-overflow-scrolling:touch}
+.qrbox{width:100%;max-width:360px;border-radius:20px;overflow:hidden;background:#000;flex-shrink:0;position:relative;min-height:280px}
+#qrr{width:100%!important;border:none!important;background:transparent!important}
+#qrr video{width:100%!important;display:block;object-fit:cover}
+#qrr img{display:none!important}
+#qrr__scan_region{background:transparent!important;border:none!important}
+#qrr__dashboard{display:none!important}
+.corners{position:absolute;inset:0;pointer-events:none;z-index:10;display:none}
+.sline{position:absolute;left:10%;width:80%;height:2px;background:linear-gradient(90deg,transparent,var(--ac),transparent);box-shadow:0 0 8px var(--ac);border-radius:1px;animation:sm 2s ease-in-out infinite}
+@keyframes sm{0%{top:10%;opacity:0}10%{opacity:1}90%{opacity:1}100%{top:90%;opacity:0}}
+.cr{position:absolute;width:28px;height:28px;border-color:var(--ac);border-style:solid}
+.cr.tl{top:12px;left:12px;border-width:3px 0 0 3px;border-radius:4px 0 0 0}
+.cr.tr{top:12px;right:12px;border-width:3px 3px 0 0;border-radius:0 4px 0 0}
+.cr.bl{bottom:12px;left:12px;border-width:0 0 3px 3px;border-radius:0 0 0 4px}
+.cr.br{bottom:12px;right:12px;border-width:0 3px 3px 0;border-radius:0 0 4px 0}
+.camph{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;color:var(--txm);font-size:13px;background:#000;z-index:5}
+.camph .phi{font-size:52px;opacity:.2}
+.camst{position:absolute;bottom:10px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.8);border:1px solid var(--bor);border-radius:20px;padding:5px 16px;font-size:12px;color:var(--txm);white-space:nowrap;z-index:20}
+
+.btnsc{width:100%;max-width:360px;height:58px;background:linear-gradient(135deg,var(--ac),var(--ac2));color:#0A0F1E;border:none;border-radius:14px;font-size:21px;font-weight:700;letter-spacing:1.5px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px;box-shadow:0 4px 24px rgba(0,229,255,.3);flex-shrink:0;touch-action:manipulation}
+.btnsc.on{background:linear-gradient(135deg,var(--rd),#c0304a);box-shadow:0 4px 24px rgba(255,77,106,.3)}
+
+/* TOAST */
+.toast{width:100%;max-width:360px;border-radius:14px;padding:14px 18px;display:none;align-items:center;gap:12px;flex-shrink:0;animation:ti .3s cubic-bezier(.34,1.56,.64,1)}
+@keyframes ti{from{opacity:0;transform:scale(.9) translateY(8px)}to{opacity:1;transform:scale(1) translateY(0)}}
+.toast.show{display:flex}
+.toast.ok{background:var(--gr2);border:1px solid rgba(0,214,143,.35)}
+.toast.no{background:var(--rd2);border:1px solid rgba(255,77,106,.35)}
+.toast.dup{background:var(--yw2);border:1px solid rgba(255,184,0,.35)}
+.tic{width:42px;height:42px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0}
+.ok .tic{background:rgba(0,214,143,.2)}.no .tic{background:rgba(255,77,106,.2)}.dup .tic{background:rgba(255,184,0,.2)}
+.tbody{flex:1;min-width:0}
+.tlbl{font-size:11px;font-weight:600;letter-spacing:1px;text-transform:uppercase;margin-bottom:2px}
+.ok .tlbl{color:var(--gr)}.no .tlbl{color:var(--rd)}.dup .tlbl{color:var(--yw)}
+.tcode{font-size:19px;font-weight:700;color:var(--tx);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tsub{font-size:12px;color:var(--txm);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tprod{font-size:13px;color:var(--ac);margin-top:4px;opacity:.95;font-weight:500;line-height:1.4;word-break:break-word}
+
+/* MANUAL */
+.mansec{width:100%;max-width:360px;padding-bottom:20px;flex-shrink:0}
+.slbl{font-size:11px;font-weight:600;letter-spacing:1px;text-transform:uppercase;color:var(--txm);margin-bottom:8px}
+.row{display:flex;gap:8px}
+.inp{flex:1;background:var(--sur2);border:1px solid var(--bor);border-radius:10px;padding:12px 14px;font-size:14px;color:var(--tx);outline:none}
+.inp:focus{border-color:var(--ac)}
+.inp::placeholder{color:var(--txm)}
+.btnsm{background:var(--sur2);border:1px solid var(--bor);border-radius:10px;padding:12px 16px;color:var(--ac);font-size:14px;font-weight:600;cursor:pointer;white-space:nowrap;touch-action:manipulation}
+
+/* GUIAS */
+#vg{flex-direction:column}
+.toolbar{display:flex;gap:8px;padding:12px 16px;background:var(--sur);border-bottom:1px solid var(--bor);flex-shrink:0}
+.sbox{flex:1;position:relative}
+.sic{position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--txm)}
+.sinp{width:100%;background:var(--sur2);border:1px solid var(--bor);border-radius:10px;padding:10px 14px 10px 36px;font-size:14px;color:var(--tx);outline:none}
+.sinp::placeholder{color:var(--txm)}
+.filters{display:flex;gap:6px}
+.fb{padding:8px 12px;border-radius:8px;border:1px solid var(--bor);background:var(--sur2);color:var(--txm);font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;touch-action:manipulation}
+.fb.active{background:rgba(0,229,255,.1);border-color:var(--ac);color:var(--ac)}
+.glist{flex:1;overflow-y:auto;padding:8px 12px;-webkit-overflow-scrolling:touch}
+.gi{display:flex;align-items:center;gap:10px;background:var(--sur);border:1px solid var(--bor);border-radius:12px;padding:10px 12px;margin-bottom:8px}
+.gi.rev{border-color:rgba(0,214,143,.3);background:linear-gradient(135deg,var(--sur),rgba(0,214,143,.05))}
+.gico{width:34px;height:34px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0}
+.rev .gico{background:var(--gr2)}.pen .gico{background:rgba(255,184,0,.1)}
+.ginf{flex:1;min-width:0}
+.gnum{font-size:15px;font-weight:700;color:var(--tx)}
+.gdest{font-size:11px;color:var(--txm);margin-top:1px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.gprod{font-size:11px;color:var(--ac);margin-top:1px;opacity:.85;line-height:1.4;word-break:break-word}
+.gbadge{font-size:10px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;padding:2px 7px;border-radius:4px;flex-shrink:0}
+.gbadge.rev{background:var(--gr2);color:var(--gr)}.gbadge.pen{background:var(--yw2);color:var(--yw)}
+.gtime{font-size:11px;color:var(--txm);flex-shrink:0}
+.gdel{background:none;border:none;color:var(--txm);cursor:pointer;padding:10px;font-size:18px;min-width:40px;min-height:40px;display:flex;align-items:center;justify-content:center;touch-action:manipulation;-webkit-tap-highlight-color:transparent}
+.empty{display:flex;flex-direction:column;align-items:center;justify-content:center;height:200px;color:var(--txm);gap:10px;font-size:14px}
+
+/* CONFIG */
+#vc{flex-direction:column;overflow-y:auto;padding:16px;gap:14px;-webkit-overflow-scrolling:touch}
+.stitle{font-size:13px;font-weight:600;letter-spacing:1.5px;text-transform:uppercase;color:var(--ac);margin-bottom:2px}
+.card{background:var(--sur);border:1px solid var(--bor);border-radius:16px;overflow:hidden}
+.crow{display:flex;align-items:center;gap:12px;padding:14px 16px;border-bottom:1px solid var(--bor);cursor:pointer;touch-action:manipulation}
+.crow:last-child{border-bottom:none}
+.crow:active{background:var(--sur2)}
+.cric{width:36px;height:36px;border-radius:10px;background:var(--sur2);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0}
+.crtx{flex:1}.crlbl{font-size:15px;font-weight:500;color:var(--tx)}.crsub{font-size:12px;color:var(--txm);margin-top:1px}
+.tgl{position:relative;width:44px;height:24px;flex-shrink:0}
+.tgl input{display:none}
+.ttr{position:absolute;inset:0;background:var(--sur2);border-radius:12px;border:1px solid var(--bor);cursor:pointer;transition:background .3s}
+.tth{position:absolute;top:2px;left:2px;width:18px;height:18px;background:var(--txm);border-radius:50%;transition:transform .3s,background .3s;pointer-events:none}
+.tgl input:checked~.ttr{background:rgba(0,229,255,.2);border-color:var(--ac)}
+.tgl input:checked~.tth{transform:translateX(20px);background:var(--ac)}
+
+.pbox{background:var(--sur);border:1px solid var(--bor);border-radius:16px;padding:16px}
+.phd{display:flex;justify-content:space-between;margin-bottom:10px}
+.plbl{font-size:14px;font-weight:500;color:var(--tx)}
+.ppct{font-size:20px;font-weight:700;color:var(--ac)}
+.pbar{height:8px;background:var(--sur2);border-radius:4px;overflow:hidden}
+.pfill{height:100%;background:linear-gradient(90deg,var(--ac),var(--gr));border-radius:4px;transition:width .5s}
+.psub{font-size:12px;color:var(--txm);margin-top:8px;text-align:center}
+
+.drop{border:2px dashed var(--bor);border-radius:14px;padding:22px 16px;text-align:center;cursor:pointer;touch-action:manipulation}
+.drop:active{border-color:var(--ac);background:rgba(0,229,255,.04)}
+.dropic{font-size:34px;margin-bottom:8px}
+.droptx{color:var(--tx);font-weight:600;font-size:15px;margin-bottom:4px}
+.dropsub{color:var(--txm);font-size:12px}
+.dropprog{display:none;margin-top:10px;font-size:12px;color:var(--ac);line-height:1.6}
+
+.ta{width:100%;background:var(--sur2);border:1px solid var(--bor);border-radius:10px;padding:12px;font-size:13px;color:var(--tx);resize:none;height:90px;outline:none}
+.ta:focus{border-color:var(--ac)}.ta::placeholder{color:var(--txm)}
+.btnp{width:100%;padding:13px;background:linear-gradient(135deg,var(--ac),var(--ac2));color:#0A0F1E;border:none;border-radius:10px;font-size:16px;font-weight:700;letter-spacing:1px;cursor:pointer;touch-action:manipulation}
+.btns{width:100%;padding:12px;background:none;border:1px solid var(--bor);border-radius:10px;font-size:15px;font-weight:600;color:var(--txm);cursor:pointer;touch-action:manipulation}
+.btnd{width:100%;padding:12px;background:var(--rd2);border:1px solid rgba(255,77,106,.3);border-radius:10px;font-size:15px;font-weight:600;color:var(--rd);cursor:pointer;touch-action:manipulation}
+/* Inventario */
+.prod-item{display:flex;align-items:center;gap:10px;background:var(--sur);border:1px solid var(--bor);border-radius:12px;padding:12px;margin-bottom:8px}
+.prod-item.bajo{border-color:rgba(255,77,106,.4);background:var(--rd2)}
+.prod-ico{width:36px;height:36px;border-radius:10px;background:var(--sur2);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0}
+.prod-info{flex:1;min-width:0}
+.prod-nombre{font-size:14px;font-weight:600;color:var(--tx);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.prod-sku{font-size:11px;color:var(--txm);margin-top:1px}
+.prod-cant{font-size:22px;font-weight:700;color:var(--ac);flex-shrink:0;text-align:right}
+.prod-cant.bajo{color:var(--rd)}
+.prod-del{background:none;border:none;color:var(--txm);cursor:pointer;padding:8px;font-size:16px;touch-action:manipulation}
+
+#notif{position:fixed;top:calc(var(--st) + 76px);left:50%;transform:translateX(-50%) translateY(-16px);background:var(--sur);border:1px solid var(--bor);border-radius:12px;padding:10px 18px;font-size:13px;font-weight:500;color:var(--tx);z-index:300;opacity:0;transition:opacity .25s,transform .25s;pointer-events:none;max-width:88vw;text-align:center}
+#notif.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+@keyframes pg{0%{box-shadow:0 0 0 0 rgba(0,214,143,.6)}70%{box-shadow:0 0 0 20px rgba(0,214,143,0)}100%{box-shadow:0 0 0 0 rgba(0,214,143,0)}}
+@keyframes pr{0%{box-shadow:0 0 0 0 rgba(255,77,106,.6)}70%{box-shadow:0 0 0 20px rgba(255,77,106,0)}100%{box-shadow:0 0 0 0 rgba(255,77,106,0)}}
+.qrbox.ok{animation:pg .55s ease-out}.qrbox.err{animation:pr .55s ease-out}
+
+input[type=file]{display:none}
+::-webkit-scrollbar{width:4px}::-webkit-scrollbar-thumb{background:var(--bor);border-radius:2px}
+</style>
+</head>
+<body>
+<div id="app">
+
+<header>
+  <div class="logo">
+    <div class="logo-ic">📦</div>
+    <div>
+      <div class="logo-tx">Guia<span>Scan</span></div>
+      <div class="logo-by">by Felipe Ensuncho</div>
+    </div>
+  </div>
+  <div class="stats">
+    <div class="chip rev"><span class="dot"></span><span class="n" id="cRev">0</span><span>Rev</span></div>
+    <div class="chip pen"><span class="dot"></span><span class="n" id="cPen">0</span><span>Pen</span></div>
+  </div>
+</header>
+
+<nav class="tabs">
+  <button class="tab active" onclick="goTab('vs')">📷 ESCANEAR</button>
+  <button class="tab" onclick="goTab('vg')">📋 GUIAS</button>
+  <button class="tab" onclick="goTab('vi')">📦 STOCK</button>
+  <button class="tab" onclick="goTab('vc')">⚙️ CONFIG</button>
+</nav>
+
+<!-- SCANNER -->
+<div id="vs" class="view active">
+  <div class="qrbox" id="qrbox">
+    <div class="camph" id="camph"><div class="phi">📷</div><div>Toca INICIAR ESCANEO</div></div>
+    <div id="qrr"></div>
+    <div class="corners" id="corners">
+      <div class="sline"></div>
+      <div class="cr tl"></div><div class="cr tr"></div>
+      <div class="cr bl"></div><div class="cr br"></div>
+    </div>
+    <div class="camst" id="camst">Listo</div>
+  </div>
+
+  <div class="toast" id="toast">
+    <div class="tic" id="tic"></div>
+    <div class="tbody">
+      <div class="tlbl" id="tlbl"></div>
+      <div class="tcode" id="tcode"></div>
+      <div class="tsub" id="tsub"></div>
+      <div class="tprod" id="tprod"></div>
+    </div>
+  </div>
+
+  <button class="btnsc" id="btnsc" onclick="toggleScan()">📷 INICIAR ESCANEO</button>
+
+  <div class="mansec">
+    <div class="slbl">Ingresar número manualmente</div>
+    <div class="row">
+      <input class="inp" id="manInp" type="text" placeholder="Ej: 36395575137.1" autocomplete="off" autocorrect="off" spellcheck="false"/>
+      <button class="btnsm" onclick="doManual()">Verificar</button>
+    </div>
+  </div>
+</div>
+
+<!-- GUIAS -->
+<div id="vg" class="view">
+  <div class="toolbar">
+    <div class="sbox">
+      <span class="sic">🔍</span>
+      <input class="sinp" id="sinp" type="text" placeholder="Buscar guía..." oninput="renderList()"/>
+    </div>
+    <div class="filters">
+      <button class="fb active" data-f="all" onclick="setFilter('all')">Todas</button>
+      <button class="fb" data-f="pen" onclick="setFilter('pen')">⏳</button>
+      <button class="fb" data-f="rev" onclick="setFilter('rev')">✅</button>
+    </div>
+  </div>
+  <div class="glist" id="glist"></div>
+</div>
+
+<!-- INVENTARIO -->
+<div id="vi" class="view">
+
+  <!-- Sub-pestañas del inventario -->
+  <div style="display:flex;background:var(--sur);border-bottom:1px solid var(--bor);flex-shrink:0">
+    <button class="subtab active" id="st-stock"    onclick="subTab('stock')"   style="flex:1;padding:9px 4px;font-size:11px;font-weight:600;color:var(--txm);border:none;background:none;cursor:pointer;border-bottom:2px solid transparent;touch-action:manipulation">📦 STOCK</button>
+    <button class="subtab"        id="st-entradas" onclick="subTab('entradas')" style="flex:1;padding:9px 4px;font-size:11px;font-weight:600;color:var(--txm);border:none;background:none;cursor:pointer;border-bottom:2px solid transparent;touch-action:manipulation">📥 ENTRADAS</button>
+    <button class="subtab"        id="st-salidas"  onclick="subTab('salidas')"  style="flex:1;padding:9px 4px;font-size:11px;font-weight:600;color:var(--txm);border:none;background:none;cursor:pointer;border-bottom:2px solid transparent;touch-action:manipulation">📤 SALIDAS</button>
+  </div>
+
+  <!-- STOCK -->
+  <div id="sub-stock" class="subview" style="flex:1;overflow-y:auto;padding:12px 14px;display:flex;flex-direction:column;gap:10px;-webkit-overflow-scrolling:touch">
+    <div class="pbox" id="stockResumen">
+      <div class="phd"><div class="plbl">📦 Inventario total</div><div class="ppct" id="stockTotal">0</div></div>
+      <div style="font-size:11px;color:var(--txm);margin-top:3px" id="stockAlerta"></div>
+    </div>
+    <div class="stitle">📋 Productos</div>
+    <input class="inp" id="stockSearch" type="text" placeholder="Buscar producto..." oninput="filtrarStock()" autocomplete="off"/>
+    <div id="prodList"></div>
+    <button class="btns" onclick="exportarInventario()">📤 Exportar inventario CSV</button>
+  </div>
+
+  <!-- ENTRADAS -->
+  <div id="sub-entradas" class="subview" style="flex:1;overflow-y:auto;padding:12px 14px;display:none;flex-direction:column;gap:10px;-webkit-overflow-scrolling:touch">
+
+    <div class="stitle">📄 Importar factura PDF</div>
+    <div class="drop" onclick="document.getElementById('facturaFile').click()" style="border:2px dashed var(--bor);border-radius:14px;padding:20px 16px;text-align:center;cursor:pointer">
+      <div style="font-size:32px;margin-bottom:8px">🧾</div>
+      <div style="color:var(--tx);font-weight:600;font-size:14px;margin-bottom:4px">Subir factura de mercancía</div>
+      <div style="color:var(--txm);font-size:11px">PDF con tabla: Producto | Cantidad | Precio</div>
+      <div style="display:none;margin-top:10px;font-size:12px;color:var(--ac);line-height:1.6" id="facturaprog"></div>
+    </div>
+    <input type="file" id="facturaFile" accept="application/pdf" onchange="importarFactura(event)"/>
+
+    <!-- Preview de factura antes de confirmar -->
+    <div id="facturaPreview" style="display:none;flex-direction:column;gap:8px">
+      <div class="stitle">✅ Productos detectados — confirma la entrada</div>
+      <div id="facturaItems"></div>
+      <div style="display:flex;gap:8px">
+        <button class="btnp" style="flex:1" onclick="confirmarFactura()">✅ CONFIRMAR ENTRADA</button>
+        <button class="btns" style="flex:1" onclick="cancelarFactura()">Cancelar</button>
+      </div>
+    </div>
+
+    <div class="stitle">⚡ Entrada manual rápida</div>
+    <div style="display:flex;flex-direction:column;gap:8px;background:var(--sur);border:1px solid var(--bor);border-radius:14px;padding:14px">
+      <select class="inp" id="ajusteSku" style="cursor:pointer">
+        <option value="">-- Seleccionar producto --</option>
+      </select>
+      <div style="display:flex;gap:8px">
+        <input class="inp" id="ajusteCant" type="number" placeholder="Cantidad a agregar" min="1" style="flex:1"/>
+      </div>
+      <input class="inp" id="ajusteMotivo" type="text" placeholder="Motivo (ej: Factura #4685)" autocomplete="off"/>
+      <button class="btnp" onclick="hacerEntrada()">➕ REGISTRAR ENTRADA</button>
+    </div>
+
+    <div class="stitle">➕ Agregar producto nuevo</div>
+    <div style="display:flex;flex-direction:column;gap:8px;background:var(--sur);border:1px solid var(--bor);border-radius:14px;padding:14px">
+      <input class="inp" id="pSku"    type="text" placeholder="SKU (ej: RUANA-BORREGO)" autocomplete="off"/>
+      <input class="inp" id="pNombre" type="text" placeholder="Nombre del producto" autocomplete="off"/>
+      <div style="display:flex;gap:8px">
+        <input class="inp" id="pCant" type="number" placeholder="Cantidad inicial" min="0" style="flex:1"/>
+        <input class="inp" id="pMin"  type="number" placeholder="Mín." min="0" style="width:80px"/>
+      </div>
+      <button class="btnp" onclick="guardarProducto()">CREAR PRODUCTO</button>
+    </div>
+  </div>
+
+  <!-- SALIDAS -->
+  <div id="sub-salidas" class="subview" style="flex:1;overflow-y:auto;padding:12px 14px;display:none;flex-direction:column;gap:10px;-webkit-overflow-scrolling:touch">
+    <div class="stitle">📤 Historial de salidas</div>
+    <div id="historialList"><div class="empty"><div class="empty-icon">📋</div><div>Cargando historial...</div></div></div>
+  </div>
+
+</div>
+
+<div id="vc" class="view">
+
+  <div class="pbox">
+    <div class="phd"><div class="plbl">Progreso</div><div class="ppct" id="ppct">0%</div></div>
+    <div class="pbar"><div class="pfill" id="pfill" style="width:0%"></div></div>
+    <div class="psub" id="psub">0 de 0 guías revisadas</div>
+  </div>
+
+  <div class="stitle">📄 Importar PDF</div>
+  <div class="drop" onclick="document.getElementById('pdfFile').click()">
+    <div class="dropic">📄</div>
+    <div class="droptx">Seleccionar PDF(s) de guías</div>
+    <div class="dropsub">Puedes seleccionar varios PDFs a la vez</div>
+    <div class="dropprog" id="pdfprog"></div>
+  </div>
+  <input type="file" id="pdfFile" accept="application/pdf" multiple onchange="importPDF(event)"/>
+
+  <div class="stitle">📋 Agregar guías</div>
+  <div class="card">
+    <div class="crow" onclick="document.getElementById('csvFile').click()">
+      <div class="cric">📂</div>
+      <div class="crtx"><div class="crlbl">Importar CSV / TXT</div><div class="crsub">Una guía por línea</div></div>
+    </div>
+  </div>
+  <input type="file" id="csvFile" accept=".csv,.txt" onchange="importCSV(event)"/>
+
+  <div style="display:flex;flex-direction:column;gap:8px">
+    <div class="slbl">O pega los números aquí</div>
+    <textarea class="ta" id="pasteArea" placeholder="36395575137.1&#10;240050922464&#10;..."></textarea>
+    <button class="btnp" onclick="importPaste()">AGREGAR GUIAS</button>
+  </div>
+
+  <div class="stitle">⚙️ Opciones</div>
+  <div class="card">
+    <div class="crow" style="cursor:default">
+      <div class="cric">🔔</div>
+      <div class="crtx"><div class="crlbl">Sonido</div></div>
+      <label class="tgl"><input type="checkbox" id="tSound" checked onchange="savePrefs()"><div class="ttr"></div><div class="tth"></div></label>
+    </div>
+    <div class="crow" style="cursor:default">
+      <div class="cric">📳</div>
+      <div class="crtx"><div class="crlbl">Vibración</div></div>
+      <label class="tgl"><input type="checkbox" id="tVibe" checked onchange="savePrefs()"><div class="ttr"></div><div class="tth"></div></label>
+    </div>
+  </div>
+
+  <div class="stitle">💾 Datos</div>
+  <div style="display:flex;flex-direction:column;gap:8px">
+    <button class="btns" onclick="exportCSV()">📤 Exportar CSV</button>
+    <button class="btns" onclick="resetScanned()">🔄 Reiniciar escaneos</button>
+    <button class="btnd" onclick="clearAll()">🗑️ Borrar todo</button>
+  </div>
+
+  <div style="text-align:center;font-size:11px;color:var(--txm);padding:8px 0 24px">
+    GuiaScan v6.0 — Coordinadora & Interrapidísimo<br>© 2026 Felipe Ensuncho. Todos los derechos reservados.
+  </div>
+</div>
+
+</div>
+<div id="notif"></div>
+
+<script>
+// ═══ STATE ═══
+var guias = {};
+var prefs = {sound:true, vibe:true};
+var filter = 'all';
+var scanner = null;
+var scanning = false;
+var lastCode = '';
+var lastTime = 0;
+var DEBOUNCE = 3000;
+
+// ═══ INIT ═══
+function init() {
+  if (typeof pdfjsLib !== 'undefined') {
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+  }
+  loadData(); loadPrefs();
+  renderList(); updateStats(); updateProgress();
+  document.getElementById('manInp').addEventListener('keydown', function(e){ if(e.key==='Enter') doManual(); });
+}
+
+// ═══ TABS ═══
+function goTab(id) {
+  document.querySelectorAll('.tab').forEach(function(t,i){
+    t.classList.toggle('active', ['vs','vg','vi','vc'][i]===id);
+  });
+  document.querySelectorAll('.view').forEach(function(v){ v.classList.remove('active'); });
+  document.getElementById(id).classList.add('active');
+  if (id !== 'vs') stopScan();
+  if (id === 'vg') renderList();
+  if (id === 'vc') updateProgress();
+  if (id === 'vi') cargarInventario();
+}
+
+// ═══ SCANNER ═══
+function toggleScan() {
+  if (scanning) stopScan(); else startScan();
+}
+
+function startScan() {
+  setStatus('Iniciando...');
+  try {
+    scanner = new Html5Qrcode('qrr');
+    var config = {
+      fps: 10,
+      qrbox: {width:240, height:240},
+      aspectRatio: 1.0,
+      formatsToSupport: [
+        Html5QrcodeSupportedFormats.QR_CODE,
+        Html5QrcodeSupportedFormats.CODE_128,
+        Html5QrcodeSupportedFormats.CODE_39,
+        Html5QrcodeSupportedFormats.EAN_13,
+        Html5QrcodeSupportedFormats.EAN_8,
+        Html5QrcodeSupportedFormats.PDF_417,
+        Html5QrcodeSupportedFormats.DATA_MATRIX
+      ]
+    };
+    scanner.start({facingMode:'environment'}, config, onScanOk, function(){})
+    .then(function(){
+      scanning = true;
+      document.getElementById('camph').style.display = 'none';
+      document.getElementById('corners').style.display = 'block';
+      var b = document.getElementById('btnsc');
+      b.textContent = '⏹ DETENER ESCANEO';
+      b.classList.add('on');
+      setStatus('Apunta al código de barras o QR');
+    })
+    .catch(function(err){
+      handleCamError(err);
+    });
+  } catch(e) {
+    handleCamError(e);
+  }
+}
+
+function handleCamError(err) {
+  scanning = false;
+  scanner = null;
+  var msg = '❌ No se pudo iniciar la cámara';
+  var s = String(err);
+  if (s.indexOf('NotAllowed') > -1 || s.indexOf('Permission') > -1)
+    msg = '❌ Permiso denegado — Ajustes → Safari → Cámara → Permitir';
+  else if (s.indexOf('NotFound') > -1)
+    msg = '❌ No se encontró cámara';
+  else if (s.indexOf('NotReadable') > -1)
+    msg = '❌ Cámara ocupada por otra app';
+  setStatus('Error');
+  showNotif(msg, 6000);
+}
+
+function stopScan() {
+  if (scanner) {
+    try { if(scanning) scanner.stop(); } catch(e){}
+    try { scanner.clear(); } catch(e){}
+    scanner = null;
+  }
+  scanning = false;
+  document.getElementById('camph').style.display = 'flex';
+  document.getElementById('corners').style.display = 'none';
+  document.getElementById('qrr').innerHTML = '';
+  var b = document.getElementById('btnsc');
+  b.textContent = '📷 INICIAR ESCANEO';
+  b.classList.remove('on');
+  setStatus('Listo');
+}
+
+function setStatus(t) { document.getElementById('camst').textContent = t; }
+
+function onScanOk(raw) {
+  var now = Date.now();
+  if (raw === lastCode && now - lastTime < DEBOUNCE) return;
+  lastCode = raw; lastTime = now;
+  var code = extractCode(raw);
+  processResult(code, raw);
+}
+
+// ═══ EXTRACT CODE ═══
+function extractCode(raw) {
+  var s = raw.trim();
+  // Already has dot format
+  var m1 = s.match(/\b(\d{9,13}\.\d{1,2})\b/);
+  if (m1) return m1[1];
+  // Coordinadora barcode: 7 + 11digits + 001 (15 chars)
+  if (/^\d{12,}$/.test(s)) {
+    // Try to match against loaded guides first
+    for (var key in guias) {
+      var base = key.indexOf('.') > -1 ? key.split('.')[0] : key;
+      if (base.length >= 8 && s.indexOf(base) > -1) return key;
+    }
+    // Coordinadora format: starts with 7, guide is digits 2-12
+    if (s.length === 15 && s[0] === '7') {
+      return s.substring(1,12) + '.1';
+    }
+    if (s[0] === '7' && s.length >= 12) {
+      return s.substring(1,12) + '.1';
+    }
+    // Pure barcode 10-13 digits
+    if (/^\d{10,13}$/.test(s)) return s;
+  }
+  // GUIA keyword
+  var m2 = s.match(/GUIA[:\s#]{0,5}(\d{8,13}(?:\.\d{1,2})?)/i);
+  if (m2) return m2[1];
+  // Any digits+dot+digits
+  var m3 = s.match(/(\d{6,}(?:\.\d{1,2})?)/);
+  if (m3) return m3[1];
+  return s;
+}
+
+// ═══ PROCESS RESULT — llama al servidor ═══
+var pendienteConfirmacion = null;
+
+function processResult(code, raw) {
+  var box = document.getElementById('qrbox');
+  box.classList.remove('ok','err');
+  void box.offsetWidth;
+
+  fetch(API+'/api/verificar', {
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ codigo: raw })
+  })
+  .then(function(r){ return r.json(); })
+  .then(function(data){
+    if (data.resultado === 'NO_ENCONTRADA') {
+      showToast('no','❌','NO ENCONTRADA', data.codigo||code, data.msg||'No está en la lista', '');
+      box.classList.add('err'); feedback(false);
+
+    } else if (data.resultado === 'DUPLICADA') {
+      showToast('dup','⚠️','YA REVISADA', data.codigo, data.msg, data.contenido||'');
+      box.classList.add('err'); feedback(false);
+
+    } else if (data.resultado === 'PENDIENTE_CONFIRMACION') {
+      // Mostrar panel de confirmación de descuento
+      pendienteConfirmacion = data;
+      feedback(true);
+      mostrarConfirmacion(data);
+      box.classList.add('ok');
+    }
+  })
+  .catch(function(err){
+    // Fallback local si no hay internet
+    if (guias[code]) {
+      var g = guias[code];
+      if (g.estado === 'rev') {
+        showToast('dup','⚠️','YA REVISADA', code, 'Escaneada a las '+g.hora, '');
+        box.classList.add('err'); feedback(false);
+      } else {
+        g.estado = 'rev'; g.hora = timeNow();
+        saveData(); updateStats(); updateProgress(); renderList();
+        showToast('ok','✅','REVISADA', code, g.destino||g.hora, g.contenido||'');
+        box.classList.add('ok'); feedback(true);
+      }
+    } else {
+      showToast('no','❌','NO ENCONTRADA', code, raw !== code ? 'Leído: '+raw.substring(0,35) : 'No está en la lista', '');
+      box.classList.add('err'); feedback(false);
+    }
+  });
+}
+
+function mostrarConfirmacion(data) {
+  var panel = document.getElementById('confirmPanel');
+  var lista  = document.getElementById('confirmLista');
+  var titulo = document.getElementById('confirmTitulo');
+
+  titulo.textContent = data.codigo + ' — ' + (data.destino||'');
+
+  var preview = data.descuento_preview || [];
+  if (preview.length === 0) {
+    lista.innerHTML = '<div style="color:var(--txm);font-size:13px;padding:8px 0">No se encontraron productos en el inventario para descontar.</div>';
+  } else {
+    lista.innerHTML = preview.map(function(p){
+      if (!p.encontrado) {
+        return '<div class="conf-item conf-no">'+
+          '<span>❓ '+p.nombre+'</span>'+
+          '<span style="color:var(--txm);font-size:11px">Sin match</span>'+
+        '</div>';
+      }
+      var color = p.stockBajo ? 'var(--rd)' : 'var(--gr)';
+      return '<div class="conf-item">'+
+        '<div>'+
+          '<div style="font-size:13px;font-weight:600;color:var(--tx)">'+p.nombre+'</div>'+
+          '<div style="font-size:11px;color:var(--txm)">'+p.sku+'</div>'+
+        '</div>'+
+        '<div style="text-align:right">'+
+          '<div style="font-size:13px;color:var(--txm)">'+p.cantidadActual+' → <span style="color:'+color+';font-weight:700">'+p.cantidadResultante+'</span></div>'+
+          '<div style="font-size:10px;color:var(--txm)">-'+p.cantidadDescontar+' uds</div>'+
+          (p.stockBajo ? '<div style="font-size:10px;color:var(--rd)">⚠️ Stock bajo</div>' : '')+
+        '</div>'+
+      '</div>';
+    }).join('');
+  }
+
+  panel.style.display = 'flex';
+}
+
+function confirmarDescuento(confirmar) {
+  if (!pendienteConfirmacion) return;
+  var codigo = pendienteConfirmacion.codigo;
+  document.getElementById('confirmPanel').style.display = 'none';
+
+  fetch(API+'/api/confirmar', {
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ codigo: codigo, confirmar: confirmar })
+  })
+  .then(function(r){ return r.json(); })
+  .then(function(data){
+    if (data.resultado === 'REVISADA') {
+      guias[codigo] = { destino:data.destino, contenido:data.contenido, estado:'rev', hora:data.hora };
+      saveData(); updateStats(); updateProgress(); renderList();
+      showToast('ok','✅','REVISADA', codigo, data.destino+' · '+data.hora, data.contenido||'');
+      // Mostrar qué se descontó
+      if (confirmar && data.descuento && data.descuento.length > 0) {
+        var msg = data.descuento.map(function(d){ return d.nombre+': -'+d.descontado+' ('+d.restante+' restantes)'; }).join(' | ');
+        showNotif('📦 Descontado: '+msg, 6000);
+        // Recargar inventario
+        setTimeout(cargarInventario, 1000);
+      }
+    }
+    pendienteConfirmacion = null;
+  })
+  .catch(function(){
+    showNotif('❌ Error al confirmar', 3000);
+    pendienteConfirmacion = null;
+  });
+}
+
+function showToast(type, icon, lbl, code, sub, prod) {
+  var t = document.getElementById('toast');
+  t.className = 'toast show '+type;
+  document.getElementById('tic').textContent = icon;
+  document.getElementById('tlbl').textContent = lbl;
+  document.getElementById('tcode').textContent = code;
+  document.getElementById('tsub').textContent = sub;
+  document.getElementById('tprod').textContent = prod;
+  clearTimeout(t._t);
+  t._t = setTimeout(function(){ t.classList.remove('show'); }, 10000);
+}
+
+function doManual() {
+  var v = document.getElementById('manInp').value.trim();
+  if (!v) return;
+  processResult(v, v);
+  document.getElementById('manInp').value = '';
+}
+
+function timeNow() {
+  return new Date().toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit'});
+}
+
+// ═══ FEEDBACK ═══
+function feedback(ok) {
+  if (prefs.vibe && navigator.vibrate) navigator.vibrate(ok ? [30,15,30] : [80,25,80]);
+  if (prefs.sound) beep(ok);
+}
+function beep(ok) {
+  try {
+    var ctx = new (window.AudioContext||window.webkitAudioContext)();
+    var o = ctx.createOscillator(), g = ctx.createGain();
+    o.connect(g); g.connect(ctx.destination);
+    o.frequency.value = ok ? 880 : 300; o.type = 'sine';
+    g.gain.setValueAtTime(0.3, ctx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime+0.35);
+    o.start(); o.stop(ctx.currentTime+0.35);
+  } catch(e){}
+}
+
+// ═══ PDF IMPORT ═══
+function importPDF(e) {
+  var files = Array.from(e.target.files);
+  if (!files.length) return;
+  e.target.value = '';
+  var prog = document.getElementById('pdfprog');
+  prog.style.display = 'block';
+  if (typeof pdfjsLib === 'undefined') { prog.textContent = '❌ PDF.js no disponible'; return; }
+
+  var totalAdded = 0;
+  var totalCodes = 0;
+
+  function procesarPDF(index) {
+    if (index >= files.length) {
+      prog.textContent = '✅ ' + files.length + ' PDF(s) — ' + totalCodes + ' guías, ' + totalAdded + ' nuevas';
+      showNotif('✅ ' + totalAdded + ' guías importadas');
+      saveData(); renderList(); updateStats(); updateProgress();
+      goTab('vg');
+      return;
+    }
+
+    var file = files[index];
+    prog.textContent = '⏳ Leyendo ' + (index+1) + '/' + files.length + ': ' + file.name;
+
+    file.arrayBuffer().then(function(ab){
+      return pdfjsLib.getDocument({data:ab}).promise;
+    }).then(function(pdf){
+      var pages = [];
+      for (var i=1; i<=pdf.numPages; i++) pages.push(i);
+      var text = '';
+      return pages.reduce(function(p, pgNum){
+        return p.then(function(){
+          prog.textContent = '⏳ PDF '+(index+1)+'/'+files.length+' — Página '+pgNum+'/'+pdf.numPages;
+          return pdf.getPage(pgNum).then(function(pg){
+            return pg.getTextContent().then(function(ct){
+              text += ct.items.map(function(x){ return x.str; }).join(' ') + '\n';
+            });
+          });
+        });
+      }, Promise.resolve()).then(function(){ return text; });
+    }).then(function(text){
+      var codes = extractFromPDF(text);
+      totalCodes += codes.length;
+      codes.forEach(function(item){
+        if (!guias[item.code]) {
+          guias[item.code] = {destino:item.destino||'', contenido:item.contenido||'', estado:'pen', hora:null};
+          totalAdded++;
+        }
+      });
+      procesarPDF(index + 1);
+    }).catch(function(err){
+      console.error(err);
+      prog.textContent = '❌ Error en ' + file.name + ' — continuando...';
+      setTimeout(function(){ procesarPDF(index + 1); }, 800);
+    });
+  }
+
+  procesarPDF(0);
+}
+
+// ═══ EXTRACT FROM PDF ═══
+function extractFromPDF(text) {
+  var map = {};
+
+  // STEP 1: Manifest lines — most reliable source
+  // "Nro: 1 Guia: 36395575137 Ciudad Destino: BOGOTA Valor..."
+  var re1 = /Nro:\s*\d+\s+Guia:\s*(\d{8,13}(?:\.\d{1,2})?)\s+Ciudad Destino:\s*([^\n\r]+?)\s+Valor/gi;
+  var m;
+  while ((m = re1.exec(text)) !== null) {
+    var code = m[1], dest = m[2].trim();
+    if (!map[code]) map[code] = {destino:dest, contenido:''};
+  }
+  // Without Valor
+  var re1b = /Nro:\s*\d+\s+Guia:\s*(\d{8,13}(?:\.\d{1,2})?)/gi;
+  while ((m = re1b.exec(text)) !== null) {
+    if (!map[m[1]]) map[m[1]] = {destino:'', contenido:''};
+  }
+
+  // STEP 2: Label blocks — extract product info
+  var blocks = text.split(/(?=GUIA:)/gi);
+  blocks.forEach(function(block){
+    var gm = block.match(/GUIA:\s*[\r\n]*\s*(\d{8,13}(?:\.\d{1,2})?)/i);
+    if (!gm) return;
+    var code = gm[1];
+    var products = [];
+
+    // Coordinadora format: * ID(XXXX)Product X qty  → keep product + qty
+    var re2 = /\*\s*ID\(\d+\)([^\n\r*]+)/gi;
+    while ((m = re2.exec(block)) !== null) {
+      var raw = m[1].trim();
+      var qtyMatch = raw.match(/\s+X\s+(\d+)\s*$/i);
+      var qty = qtyMatch ? ' x'+qtyMatch[1] : '';
+      var prod = raw
+        .replace(/\s+X\s+\d+\s*$/i,'')
+        .replace(/\$[\d.,]+/g,'')
+        .trim();
+      if (prod.length > 4 && prod.length < 100 &&
+          !/envío\s*prioritario/i.test(prod) &&
+          !/envio\s*prioritario/i.test(prod)) {
+        products.push(prod + qty);
+      }
+    }
+
+    // Interrapidisimo format: extract from "# PRODUCTO CANT" table section
+    if (products.length === 0) {
+      var prodSection = block.match(/#\s*PRODUCTO\s+CANT\s*([\s\S]+?)(?:www\.|Notas:|Powered|$)/i);
+      if (prodSection) {
+        var plines = prodSection[1].split(/[\n\r]+/);
+        plines.forEach(function(line){
+          var l = line.trim();
+          if (!l) return;
+          if (/^\$/.test(l)) return;           // skip price lines
+          if (/^\d+(\s+\d+)?$/.test(l)) return; // skip number-only lines
+          if (l.length < 6) return;
+          // Clean up
+          l = l.replace(/\$[\d.,]+.*/g,'').trim();
+          if (l.length > 6 && l.length < 120) products.push(l);
+        });
+      }
+    }
+
+    // Fallback: keyword-based search
+    if (products.length === 0) {
+      var re3 = /([A-Za-záéíóúñÁÉÍÓÚÑ][^$\n\r]{10,80}(?:Medidas|Metros|Talla|Abrigo|Tendedero|Protector)[^$\n\r]{0,60})/gi;
+      while ((m = re3.exec(block)) !== null) {
+        var prod2 = m[1]
+          .replace(/^(PRODUCTO\s+CANT\s*[\n\r]*)/i,'')
+          .replace(/\$[\d.,]+.*/g,'')
+          .trim();
+        if (prod2.length > 8 && prod2.length < 100) products.push(prod2);
+      }
+    }
+
+    var contenido = products.filter(function(v,i,a){ return a.indexOf(v)===i; }).slice(0,2).join(' | ');
+
+    if (!map[code]) {
+      map[code] = {destino:'', contenido:contenido};
+    } else {
+      if (!map[code].contenido && contenido) map[code].contenido = contenido;
+    }
+  });
+
+  // STEP 3: Deduplicate — prefer code with .1
+  var result = {};
+  Object.keys(map).forEach(function(code){
+    var base = code.indexOf('.') > -1 ? code.split('.')[0] : code;
+    var dot = base + '.1';
+    var key = map[dot] ? dot : code;
+    if (!result[key]) result[key] = map[code];
+    else {
+      if (!result[key].destino && map[code].destino) result[key].destino = map[code].destino;
+      if (!result[key].contenido && map[code].contenido) result[key].contenido = map[code].contenido;
+    }
+  });
+
+  return Object.keys(result).map(function(code){
+    return {code:code, destino:result[code].destino, contenido:result[code].contenido};
+  });
+}
+
+// ═══ CSV / PASTE ═══
+function importCSV(e) {
+  var file = e.target.files[0]; if (!file) return;
+  var r = new FileReader();
+  r.onload = function(ev){ parseLines(ev.target.result); e.target.value=''; };
+  r.readAsText(file);
+}
+function importPaste() {
+  var t = document.getElementById('pasteArea').value;
+  if (!t.trim()) return;
+  parseLines(t);
+  document.getElementById('pasteArea').value = '';
+}
+function parseLines(text) {
+  var lines = text.split(/[\n\r]+/).map(function(l){ return l.trim(); }).filter(Boolean);
+  var added = 0;
+  lines.forEach(function(line){
+    var parts = line.split(/[,;\t]/);
+    var code = parts[0].trim();
+    var dest = parts[1] ? parts[1].trim() : '';
+    var cont = parts[2] ? parts[2].trim() : '';
+    if (code && !guias[code]) {
+      guias[code] = {destino:dest, contenido:cont, estado:'pen', hora:null};
+      added++;
+    }
+  });
+  saveData(); renderList(); updateStats(); updateProgress();
+  showNotif('✅ '+added+' guías agregadas');
+  goTab('vg');
+}
+
+// ═══ LIST ═══
+function setFilter(f) {
+  filter = f;
+  document.querySelectorAll('.fb').forEach(function(b){ b.classList.toggle('active', b.dataset.f===f); });
+  renderList();
+}
+
+function renderList() {
+  var q = (document.getElementById('sinp') ? document.getElementById('sinp').value : '').toUpperCase();
+  var el = document.getElementById('glist'); if (!el) return;
+  var entries = Object.keys(guias).filter(function(code){
+    var g = guias[code];
+    if (filter==='rev' && g.estado!=='rev') return false;
+    if (filter==='pen' && g.estado!=='pen') return false;
+    if (q && code.toUpperCase().indexOf(q)<0 && (g.destino||'').toUpperCase().indexOf(q)<0) return false;
+    return true;
+  });
+  if (!entries.length) {
+    el.innerHTML = '<div class="empty"><div style="font-size:40px;opacity:.35">📦</div><div>Sin guías que mostrar</div></div>';
+    return;
+  }
+  entries.sort(function(a,b){
+    if (guias[a].estado===guias[b].estado) return a.localeCompare(b);
+    return guias[a].estado==='pen' ? -1 : 1;
+  });
+  el.innerHTML = entries.map(function(code){
+    var g = guias[code];
+    var isRev = g.estado==='rev';
+    return '<div class="gi '+(isRev?'rev':'pen')+'">' +
+      '<div class="gico">'+(isRev?'✅':'⏳')+'</div>' +
+      '<div class="ginf">' +
+        '<div class="gnum">'+code+'</div>' +
+        (g.destino ? '<div class="gdest">'+g.destino+'</div>' : '') +
+        (g.contenido ? '<div class="gprod">'+g.contenido+'</div>' : '') +
+      '</div>' +
+      '<span class="gbadge '+(isRev?'rev':'pen')+'">'+(isRev?'REVISADO':'PENDIENTE')+'</span>' +
+      (g.hora ? '<div class="gtime">'+g.hora+'</div>' : '') +
+      '<button class="gdel" onclick="delGuia(\''+code.replace(/\\/g,'\\\\').replace(/'/g,'\\\'')+'\')" ontouchend="function(e){e.preventDefault();delGuia(\''+code.replace(/\\/g,'\\\\').replace(/'/g,'\\\'')+'\');}">✕</button>' +
+    '</div>';
+  }).join('');
+}
+
+function delGuia(code) {
+  if (!guias[code]) return;
+  delete guias[code];
+  saveData(); renderList(); updateStats(); updateProgress();
+}
+
+// ═══ STATS ═══
+function updateStats() {
+  var all = Object.values(guias);
+  var rev = all.filter(function(g){ return g.estado==='rev'; }).length;
+  document.getElementById('cRev').textContent = rev;
+  document.getElementById('cPen').textContent = all.length - rev;
+}
+function updateProgress() {
+  var all = Object.values(guias), total = all.length;
+  var rev = all.filter(function(g){ return g.estado==='rev'; }).length;
+  var pct = total ? Math.round(rev/total*100) : 0;
+  document.getElementById('ppct').textContent = pct+'%';
+  document.getElementById('pfill').style.width = pct+'%';
+  document.getElementById('psub').textContent = rev+' de '+total+' guías revisadas';
+}
+
+// ═══ EXPORT ═══
+function exportCSV() {
+  var rows = ['Guia,Destino,Contenido,Estado,Hora'];
+  Object.keys(guias).forEach(function(c){
+    var g = guias[c];
+    rows.push([c, g.destino||'', g.contenido||'', g.estado==='rev'?'REVISADO':'PENDIENTE', g.hora||''].join(','));
+  });
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([rows.join('\n')],{type:'text/csv'}));
+  a.download = 'guias_'+new Date().toISOString().slice(0,10)+'.csv';
+  a.click();
+  showNotif('📤 CSV exportado');
+}
+function resetScanned() {
+  Object.keys(guias).forEach(function(c){ guias[c].estado='pen'; guias[c].hora=null; });
+  saveData(); renderList(); updateStats(); updateProgress();
+  showNotif('🔄 Escaneos reiniciados');
+}
+function clearAll() {
+  // confirm() falla en algunos navegadores móviles, usamos doble toque
+  if (!clearAll._confirm) {
+    clearAll._confirm = true;
+    showNotif('⚠️ Toca de nuevo para confirmar borrado', 3000);
+    setTimeout(function(){ clearAll._confirm = false; }, 3000);
+    return;
+  }
+  clearAll._confirm = false;
+  guias = {}; saveData(); renderList(); updateStats(); updateProgress();
+  showNotif('🗑️ Borrado todo');
+}
+
+// ═══ PERSISTENCE ═══
+function saveData() { try{localStorage.setItem('gs6',JSON.stringify(guias));}catch(e){} }
+function loadData() { try{var d=localStorage.getItem('gs6');if(d)guias=JSON.parse(d);}catch(e){} }
+function savePrefs() {
+  prefs.sound = document.getElementById('tSound').checked;
+  prefs.vibe = document.getElementById('tVibe').checked;
+  try{localStorage.setItem('gp6',JSON.stringify(prefs));}catch(e){}
+}
+function loadPrefs() {
+  try{
+    var p=localStorage.getItem('gp6'); if(p) prefs=JSON.parse(p);
+    document.getElementById('tSound').checked = prefs.sound!==false;
+    document.getElementById('tVibe').checked = prefs.vibe!==false;
+  }catch(e){}
+}
+
+// ═══ NOTIFICATIONS ═══
+var nT;
+function showNotif(msg, ms) {
+  ms = ms||2800;
+  var el = document.getElementById('notif');
+  el.textContent = msg; el.classList.add('show');
+  clearTimeout(nT); nT = setTimeout(function(){ el.classList.remove('show'); }, ms);
+}
+
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(function(){});
+
+// ═══ INVENTARIO ═══
+var inventario = [];
+
+function cargarInventario() {
+  fetch(API+'/api/inventario')
+  .then(function(r){ return r.json(); })
+  .then(function(data){
+    inventario = data.productos || [];
+    renderInventario();
+    actualizarSelectSku();
+    actualizarResumenStock();
+  })
+  .catch(function(){ showNotif('❌ Error cargando inventario', 3000); });
+}
+
+function renderInventario() {
+  var el = document.getElementById('prodList');
+  if (!inventario.length) {
+    el.innerHTML = '<div class="empty"><div style="font-size:36px;opacity:.3">📦</div><div>Sin productos aún</div></div>';
+    return;
+  }
+  // Ordenar: stock bajo primero
+  var sorted = inventario.slice().sort(function(a,b){
+    var aB = a.cantidad <= a.unidadMin;
+    var bB = b.cantidad <= b.unidadMin;
+    if (aB && !bB) return -1;
+    if (!aB && bB) return 1;
+    return a.nombre.localeCompare(b.nombre);
+  });
+  el.innerHTML = sorted.map(function(p){
+    var bajo = p.cantidad <= p.unidadMin;
+    return '<div class="prod-item'+(bajo?' bajo':'')+'">' +
+      '<div class="prod-ico">'+(bajo?'⚠️':'📦')+'</div>' +
+      '<div class="prod-info">' +
+        '<div class="prod-nombre">'+p.nombre+'</div>' +
+        '<div class="prod-sku">SKU: '+p.sku+(p.descripcion?' · '+p.descripcion:'')+'</div>' +
+        (bajo?'<div style="font-size:10px;color:var(--rd);margin-top:2px">⚠️ Stock bajo (mín: '+p.unidadMin+')</div>':'') +
+      '</div>' +
+      '<div class="prod-cant'+(bajo?' bajo':'')+'">'+p.cantidad+'</div>' +
+      '<button class="prod-del" onclick="editarProducto(''+p.sku+'')" title="Editar">✏️</button>' +
+      '<button class="prod-del" onclick="eliminarProducto(''+p.sku+'')" title="Eliminar">✕</button>' +
+    '</div>';
+  }).join('');
+}
+
+function actualizarSelectSku() {
+  var sel = document.getElementById('ajusteSku');
+  var val = sel.value;
+  sel.innerHTML = '<option value="">-- Seleccionar producto --</option>' +
+    inventario.map(function(p){
+      return '<option value="'+p.sku+'">'+p.nombre+' ('+p.cantidad+')</option>';
+    }).join('');
+  sel.value = val;
+}
+
+function actualizarResumenStock() {
+  var total = inventario.reduce(function(s,p){ return s + p.cantidad; }, 0);
+  var bajos = inventario.filter(function(p){ return p.cantidad <= p.unidadMin && p.unidadMin > 0; });
+  document.getElementById('stockTotal').textContent = total + ' uds';
+  document.getElementById('stockAlerta').textContent = bajos.length > 0
+    ? '⚠️ ' + bajos.length + ' producto(s) con stock bajo'
+    : '✅ Todo el stock en buen nivel';
+}
+
+function guardarProducto() {
+  var sku    = document.getElementById('pSku').value.trim();
+  var nombre = document.getElementById('pNombre').value.trim();
+  var desc   = document.getElementById('pDesc').value.trim();
+  var cant   = parseInt(document.getElementById('pCant').value) || 0;
+  var min    = parseInt(document.getElementById('pMin').value) || 0;
+
+  if (!sku || !nombre) { showNotif('⚠️ SKU y nombre son obligatorios', 3000); return; }
+
+  fetch(API+'/api/inventario', {
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ sku, nombre, descripcion:desc, cantidad:cant, unidadMin:min })
+  })
+  .then(function(r){ return r.json(); })
+  .then(function(data){
+    if (data.ok) {
+      showNotif('✅ Producto guardado');
+      document.getElementById('pSku').value = '';
+      document.getElementById('pNombre').value = '';
+      document.getElementById('pDesc').value = '';
+      document.getElementById('pCant').value = '';
+      document.getElementById('pMin').value = '';
+      cargarInventario();
+    } else {
+      showNotif('❌ ' + (data.msg||'Error'), 3000);
+    }
+  })
+  .catch(function(){ showNotif('❌ Sin conexión', 3000); });
+}
+
+function editarProducto(sku) {
+  var p = inventario.find(function(x){ return x.sku === sku; });
+  if (!p) return;
+  document.getElementById('pSku').value    = p.sku;
+  document.getElementById('pNombre').value = p.nombre;
+  document.getElementById('pDesc').value   = p.descripcion || '';
+  document.getElementById('pCant').value   = p.cantidad;
+  document.getElementById('pMin').value    = p.unidadMin || 0;
+  // Scroll al formulario
+  document.getElementById('pSku').scrollIntoView({ behavior:'smooth' });
+  showNotif('✏️ Editando: ' + p.nombre);
+}
+
+function eliminarProducto(sku) {
+  if (!eliminarProducto._c) {
+    eliminarProducto._c = sku;
+    showNotif('⚠️ Toca de nuevo para eliminar', 3000);
+    setTimeout(function(){ eliminarProducto._c = null; }, 3000);
+    return;
+  }
+  if (eliminarProducto._c !== sku) {
+    eliminarProducto._c = sku;
+    showNotif('⚠️ Toca de nuevo para eliminar', 3000);
+    return;
+  }
+  eliminarProducto._c = null;
+  fetch(API+'/api/inventario/'+encodeURIComponent(sku), { method:'DELETE' })
+  .then(function(){ cargarInventario(); showNotif('🗑️ Producto eliminado'); })
+  .catch(function(){ showNotif('❌ Error', 3000); });
+}
+
+function hacerAjuste() {
+  var sku    = document.getElementById('ajusteSku').value;
+  var cant   = parseInt(document.getElementById('ajusteCant').value);
+  var tipo   = document.getElementById('ajusteTipo').value;
+  var motivo = document.getElementById('ajusteMotivo').value.trim();
+
+  if (!sku)   { showNotif('⚠️ Selecciona un producto', 3000); return; }
+  if (!cant || cant <= 0) { showNotif('⚠️ Cantidad debe ser mayor a 0', 3000); return; }
+
+  fetch(API+'/api/inventario/'+encodeURIComponent(sku)+'/ajuste', {
+    method:'PATCH',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ cantidad:cant, tipo, motivo })
+  })
+  .then(function(r){ return r.json(); })
+  .then(function(data){
+    if (data.ok) {
+      var p = data.producto;
+      var msg = tipo === 'entrada' ? '➕ Entrada de '+cant+' uds' : tipo === 'salida' ? '➖ Salida de '+cant+' uds' : '✏️ Ajuste a '+cant+' uds';
+      showNotif(msg + ' — Stock: ' + p.cantidad);
+      if (data.stockBajo) showNotif('⚠️ ¡STOCK BAJO! ' + p.nombre + ': ' + p.cantidad + ' uds', 5000);
+      document.getElementById('ajusteCant').value = '';
+      document.getElementById('ajusteMotivo').value = '';
+      cargarInventario();
+    } else {
+      showNotif('❌ ' + (data.msg||'Error'), 3000);
+    }
+  })
+  .catch(function(){ showNotif('❌ Sin conexión', 3000); });
+}
+
+function exportarInventario() {
+  window.open(API+'/api/inventario/exportar','_blank');
+}
+
+
+// ═══ SUB-PESTAÑAS INVENTARIO ═══
+function subTab(name) {
+  ['stock','entradas','salidas'].forEach(function(n){
+    document.getElementById('sub-'+n).style.display = n===name ? 'flex' : 'none';
+    var btn = document.getElementById('st-'+n);
+    if (btn) { btn.classList.toggle('active', n===name); btn.style.color = n===name ? 'var(--ac)' : 'var(--txm)'; btn.style.borderBottomColor = n===name ? 'var(--ac)' : 'transparent'; }
+  });
+  if (name==='salidas') cargarHistorial();
+}
+
+function filtrarStock() {
+  var q = (document.getElementById('stockSearch')?.value||'').toUpperCase();
+  document.querySelectorAll('.prod-item').forEach(function(el){
+    el.style.display = el.dataset.nombre && el.dataset.nombre.toUpperCase().indexOf(q) > -1 ? '' : 'none';
+  });
+}
+
+// ═══ FACTURA PDF ═══
+var facturaData = null;
+
+function importarFactura(e) {
+  var file = e.target.files[0]; if (!file) return; e.target.value='';
+  var prog = document.getElementById('facturaprog');
+  prog.parentElement.style.display = 'block'; // show drop area prog
+  prog.style.display = 'block';
+  prog.textContent = '⏳ Leyendo factura...';
+  document.getElementById('facturaPreview').style.display = 'none';
+
+  var fd = new FormData(); fd.append('pdf', file); fd.append('preview','true');
+  fetch(API+'/api/importar-factura', { method:'POST', body:fd })
+  .then(function(r){ return r.json(); })
+  .then(function(data){
+    if (!data.ok || !data.preview || !data.preview.length) {
+      prog.textContent = '⚠️ ' + (data.msg||'No se detectaron productos');
+      return;
+    }
+    facturaData = data.preview;
+    prog.style.display = 'none';
+    mostrarPreviewFactura(data.preview);
+  })
+  .catch(function(){ prog.textContent = '❌ Error al leer la factura'; });
+}
+
+function mostrarPreviewFactura(items) {
+  var container = document.getElementById('facturaPreview');
+  var listEl    = document.getElementById('facturaItems');
+  container.style.display = 'flex';
+
+  listEl.innerHTML = items.map(function(item, i){
+    var color = item.encontrado ? 'var(--gr)' : 'var(--yw)';
+    var badge = item.encontrado
+      ? '<span style="font-size:9px;background:var(--gr2);color:var(--gr);padding:2px 6px;border-radius:4px;font-weight:600">✅ En inventario</span>'
+      : '<span style="font-size:9px;background:var(--yw2);color:var(--yw);padding:2px 6px;border-radius:4px;font-weight:600">⚠️ No encontrado</span>';
+    var stock = item.encontrado ? '<div style="font-size:10px;color:var(--txm)">Stock actual: '+item.stockActual+' → +'+(item.cantidad)+' = '+(item.stockActual+item.cantidad)+'</div>' : '';
+    return '<div style="background:var(--sur);border:1px solid var(--bor);border-radius:10px;padding:10px 12px;display:flex;align-items:flex-start;gap:10px">' +
+      '<div style="width:32px;height:32px;border-radius:8px;background:var(--sur2);display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0">' +
+        (item.encontrado ? '📦' : '❓') +
+      '</div>' +
+      '<div style="flex:1;min-width:0">' +
+        '<div style="font-size:13px;font-weight:600;color:var(--tx)">' + item.nombreFactura + '</div>' +
+        (item.nombreInventario && item.nombreInventario !== item.nombreFactura
+          ? '<div style="font-size:10px;color:var(--txm)">→ ' + item.nombreInventario + '</div>' : '') +
+        stock +
+        '<div style="margin-top:4px">' + badge + '</div>' +
+      '</div>' +
+      '<div style="font-size:18px;font-weight:700;color:var(--ac);flex-shrink:0">+' + item.cantidad + '</div>' +
+    '</div>';
+  }).join('');
+}
+
+function confirmarFactura() {
+  if (!facturaData) return;
+  var prog = document.getElementById('facturaprog');
+  prog.style.display = 'block';
+  prog.textContent = '⏳ Aplicando entradas al inventario...';
+  document.getElementById('facturaPreview').style.display = 'none';
+
+  var fd = new FormData();
+  // We need to re-send the same PDF — instead send confirmed items as JSON
+  fetch(API+'/api/confirmar-factura', {
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ items: facturaData })
+  })
+  .then(function(r){ return r.json(); })
+  .then(function(data){
+    if (data.ok) {
+      prog.textContent = '✅ ' + data.msg;
+      showNotif('✅ ' + data.msg);
+      facturaData = null;
+      cargarInventario();
+      subTab('stock');
+    } else {
+      prog.textContent = '❌ ' + (data.msg||'Error');
+    }
+  })
+  .catch(function(){ prog.textContent = '❌ Sin conexión'; });
+}
+
+function cancelarFactura() {
+  facturaData = null;
+  document.getElementById('facturaPreview').style.display = 'none';
+  document.getElementById('facturaprog').style.display = 'none';
+}
+
+function hacerEntrada() {
+  var sku    = document.getElementById('ajusteSku').value;
+  var cant   = parseInt(document.getElementById('ajusteCant').value);
+  var motivo = document.getElementById('ajusteMotivo').value.trim() || 'Entrada manual';
+  if (!sku) { showNotif('⚠️ Selecciona un producto', 3000); return; }
+  if (!cant || cant <= 0) { showNotif('⚠️ Cantidad debe ser mayor a 0', 3000); return; }
+
+  fetch(API+'/api/inventario/'+encodeURIComponent(sku)+'/ajuste', {
+    method:'PATCH', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ cantidad:cant, tipo:'entrada', motivo })
+  })
+  .then(function(r){ return r.json(); })
+  .then(function(data){
+    if (data.ok) {
+      showNotif('✅ Entrada registrada: +'+cant+' uds');
+      document.getElementById('ajusteCant').value='';
+      document.getElementById('ajusteMotivo').value='';
+      cargarInventario();
+    } else { showNotif('❌ '+(data.msg||'Error'), 3000); }
+  })
+  .catch(function(){ showNotif('❌ Sin conexión', 3000); });
+}
+
+function cargarHistorial() {
+  var el = document.getElementById('historialList');
+  el.innerHTML = '<div class="empty"><div class="empty-icon">⏳</div><div>Cargando...</div></div>';
+  fetch(API+'/api/inventario/movimientos')
+  .then(function(r){ return r.json(); })
+  .then(function(data){
+    var movs = data.movimientos || [];
+    if (!movs.length) {
+      el.innerHTML = '<div class="empty"><div class="empty-icon">📋</div><div>Sin movimientos aún</div></div>';
+      return;
+    }
+    el.innerHTML = movs.slice(0,50).map(function(m){
+      var isEntrada = m.tipo === 'entrada';
+      var color = isEntrada ? 'var(--gr)' : m.tipo==='ajuste' ? 'var(--yw)' : 'var(--rd)';
+      var icono = isEntrada ? '📥' : m.tipo==='ajuste' ? '✏️' : '📤';
+      var signo = isEntrada ? '+' : '-';
+      var fecha = m.fecha ? new Date(m.fecha).toLocaleDateString('es-CO',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}) : '';
+      return '<div style="display:flex;align-items:center;gap:10px;background:var(--sur);border:1px solid var(--bor);border-radius:10px;padding:9px 11px;margin-bottom:6px">' +
+        '<div style="width:30px;height:30px;border-radius:8px;background:var(--sur2);display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0">'+icono+'</div>' +
+        '<div style="flex:1;min-width:0">' +
+          '<div style="font-size:12px;font-weight:600;color:var(--tx);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+m.nombre+'</div>' +
+          '<div style="font-size:10px;color:var(--txm);margin-top:1px">'+(m.motivo||m.tipo)+' · '+fecha+'</div>' +
+        '</div>' +
+        '<div style="font-size:16px;font-weight:700;color:'+color+';flex-shrink:0">'+signo+m.cantidad+'</div>' +
+      '</div>';
+    }).join('');
+  })
+  .catch(function(){ el.innerHTML = '<div class="empty"><div class="empty-icon">❌</div><div>Error cargando historial</div></div>'; });
+}
+
+init();
+</script>
+</body>
+</html>
