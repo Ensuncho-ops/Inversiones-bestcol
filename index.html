@@ -331,6 +331,7 @@ input[type=file]{display:none}
 </div>
 
 <div id="vc" class="view">
+<div style="flex:1;overflow-y:auto;padding:14px 16px;display:flex;flex-direction:column;gap:12px;-webkit-overflow-scrolling:touch;padding-bottom:calc(var(--sb) + 20px)">
 
   <div class="pbox">
     <div class="phd"><div class="plbl">Progreso</div><div class="ppct" id="ppct">0%</div></div>
@@ -338,28 +339,28 @@ input[type=file]{display:none}
     <div class="psub" id="psub">0 de 0 guías revisadas</div>
   </div>
 
-  <div class="stitle">📄 Importar PDF</div>
-  <div class="drop" onclick="document.getElementById('pdfFile').click()">
-    <div class="dropic">📄</div>
-    <div class="droptx">Seleccionar PDF(s) de guías</div>
-    <div class="dropsub">Puedes seleccionar varios PDFs a la vez</div>
-    <div class="dropprog" id="pdfprog"></div>
+  <div class="stitle">📄 Importar guías PDF</div>
+  <div style="border:2px dashed var(--bor);border-radius:14px;padding:20px 16px;text-align:center;cursor:pointer;touch-action:manipulation" onclick="document.getElementById('pdfFile').click()">
+    <div style="font-size:32px;margin-bottom:8px">📄</div>
+    <div style="color:var(--tx);font-weight:600;font-size:14px;margin-bottom:4px">Seleccionar PDF(s) de guías</div>
+    <div style="color:var(--txm);font-size:11px">Coordinadora e Interrapidísimo · varios a la vez</div>
+    <div style="display:none;margin-top:10px;font-size:12px;color:var(--ac);line-height:1.6" id="pdfprog"></div>
   </div>
-  <input type="file" id="pdfFile" accept="application/pdf" multiple onchange="importPDF(event)"/>
+  <input type="file" id="pdfFile" accept="application/pdf" multiple onchange="importPDF(event)" style="display:none"/>
 
-  <div class="stitle">📋 Agregar guías</div>
+  <div class="stitle">📋 Agregar guías manualmente</div>
   <div class="card">
-    <div class="crow" onclick="document.getElementById('csvFile').click()">
+    <div class="crow" onclick="document.getElementById('csvFile').click()" style="touch-action:manipulation">
       <div class="cric">📂</div>
       <div class="crtx"><div class="crlbl">Importar CSV / TXT</div><div class="crsub">Una guía por línea</div></div>
     </div>
   </div>
-  <input type="file" id="csvFile" accept=".csv,.txt" onchange="importCSV(event)"/>
+  <input type="file" id="csvFile" accept=".csv,.txt" onchange="importCSV(event)" style="display:none"/>
 
   <div style="display:flex;flex-direction:column;gap:8px">
     <div class="slbl">O pega los números aquí</div>
     <textarea class="ta" id="pasteArea" placeholder="36395575137.1&#10;240050922464&#10;..."></textarea>
-    <button class="btnp" onclick="importPaste()">AGREGAR GUIAS</button>
+    <button class="btnp" onclick="importPaste()" style="touch-action:manipulation">AGREGAR GUIAS</button>
   </div>
 
   <div class="stitle">⚙️ Opciones</div>
@@ -378,14 +379,18 @@ input[type=file]{display:none}
 
   <div class="stitle">💾 Datos</div>
   <div style="display:flex;flex-direction:column;gap:8px">
-    <button class="btns" onclick="exportCSV()">📤 Exportar CSV</button>
-    <button class="btns" onclick="resetScanned()">🔄 Reiniciar escaneos</button>
-    <button class="btnd" onclick="clearAll()">🗑️ Borrar todo</button>
+    <button class="btns" onclick="exportCSV()" style="touch-action:manipulation">📤 Exportar guías CSV</button>
+    <button class="btns" onclick="exportarInventario()" style="touch-action:manipulation">📦 Exportar inventario CSV</button>
+    <button class="btns" onclick="resetScanned()" style="touch-action:manipulation">🔄 Reiniciar escaneos</button>
+    <button class="btnd" onclick="clearAll()" style="touch-action:manipulation">🗑️ Borrar todo</button>
   </div>
 
-  <div style="text-align:center;font-size:11px;color:var(--txm);padding:8px 0 24px">
-    GuiaScan v6.0 — Coordinadora & Interrapidísimo<br>© 2026 Felipe Ensuncho. Todos los derechos reservados.
+  <div style="text-align:center;font-size:10px;color:var(--txm);padding:4px 0 8px;line-height:1.6">
+    GuiaScan v3.0 — Coordinadora · Interrapidísimo · Inventario<br>
+    © 2026 Felipe Ensuncho. Todos los derechos reservados.
   </div>
+
+</div>
 </div>
 
 </div>
@@ -967,21 +972,25 @@ function exportCSV() {
   showNotif('📤 CSV exportado');
 }
 function resetScanned() {
-  Object.keys(guias).forEach(function(c){ guias[c].estado='pen'; guias[c].hora=null; });
-  saveData(); renderList(); updateStats(); updateProgress();
-  showNotif('🔄 Escaneos reiniciados');
+  fetch(API+'/api/reiniciar', {method:'POST'})
+  .then(function(){ cargarGuias(); showNotif('🔄 Escaneos reiniciados'); })
+  .catch(function(){
+    Object.keys(guias).forEach(function(c){ guias[c].estado='pen'; guias[c].hora=null; });
+    saveData(); renderList(); updateStats(); updateProgress();
+    showNotif('🔄 Escaneos reiniciados');
+  });
 }
 function clearAll() {
-  // confirm() falla en algunos navegadores móviles, usamos doble toque
   if (!clearAll._confirm) {
     clearAll._confirm = true;
-    showNotif('⚠️ Toca de nuevo para confirmar borrado', 3000);
-    setTimeout(function(){ clearAll._confirm = false; }, 3000);
+    showNotif('⚠️ Toca OTRA VEZ para confirmar borrado total', 3500);
+    setTimeout(function(){ clearAll._confirm = false; }, 3500);
     return;
   }
   clearAll._confirm = false;
-  guias = {}; saveData(); renderList(); updateStats(); updateProgress();
-  showNotif('🗑️ Borrado todo');
+  fetch(API+'/api/borrar-todo', {method:'POST'})
+  .then(function(){ guias={}; saveData(); renderList(); updateStats(); updateProgress(); showNotif('🗑️ Borrado todo'); })
+  .catch(function(){ guias={}; saveData(); renderList(); updateStats(); updateProgress(); showNotif('🗑️ Borrado todo'); });
 }
 
 // ═══ PERSISTENCE ═══
